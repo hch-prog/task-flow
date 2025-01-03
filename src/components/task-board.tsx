@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { Search, X } from "lucide-react" // Add this import
+import { Pencil, PencilIcon, Plus, Search, X } from "lucide-react" // Add this import
 import { SearchBar } from "./searchBar";
 
 interface Task {
@@ -177,6 +177,80 @@ export default function TaskBoard() {
     },
   });
 
+  const EditableTitle = ({
+    title,
+    onSave
+  }: {
+    title: string,
+    onSave: (newTitle: string) => void
+  }) => {
+    const [isEditing, setIsEditing] = useState(false)
+    const [value, setValue] = useState(title)
+
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault()
+      if (value.trim()) {
+        onSave(value)
+        setIsEditing(false)
+      }
+    }
+
+    if (isEditing) {
+      return (
+        <form onSubmit={handleSubmit} className="flex items-center gap-2">
+          <Input
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            className="py-1 h-7 font-medium text-sm"
+            autoFocus
+            onBlur={() => setIsEditing(false)}
+          />
+        </form>
+      )
+    }
+
+    return (
+      <div
+        className="flex justify-between items-center hover:bg-gray-100/50 px-2 py-1 rounded-md transition-colors duration-200 cursor-pointer group"
+        onClick={() => setIsEditing(true)}
+      >
+        <h2 className="font-medium text-gray-600 text-sm">
+          {title}
+        </h2>
+        <PencilIcon
+          className="opacity-0 group-hover:opacity-100 w-3.5 h-3.5 text-gray-400 transition-all duration-200"
+          strokeWidth={1.5}
+        />
+      </div>
+    )
+  }
+
+  const filteredColumns = columns.map(column => ({
+    ...column,
+    tasks: column.tasks.filter(task => {
+      const searchString = searchQuery.toLowerCase();
+      return (
+        task.title.toLowerCase().includes(searchString) ||
+        task.ticket.toLowerCase().includes(searchString) ||
+        task.project.toLowerCase().includes(searchString) ||
+        task.tags.some(tag => tag.toLowerCase().includes(searchString))
+      );
+    })
+  }));
+
+  const addNewColumn = () => {
+    if (columns.length >= 8) {
+      return;
+    }
+
+    const newColumn: Column = {
+      title: `New Column ${columns.length + 1}`,
+      tasks: []
+    };
+
+    setColumns([...columns, newColumn]);
+  };
+
   const useDebounce = (callback: Function, delay: number) => {
     const [timeoutId, setTimeoutId] = useState<NodeJS.Timeout | null>(null);
 
@@ -221,7 +295,7 @@ export default function TaskBoard() {
 
       setColumns(newColumns);
     } else {
-      // Moving within the same column
+
       const column = columns[parseInt(source.droppableId)];
       const copiedItems = [...column.tasks];
       const [removed] = copiedItems.splice(source.index, 1);
@@ -235,7 +309,7 @@ export default function TaskBoard() {
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
     const newTask: Task = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       title: values.title,
       ticket: values.ticket,
       project: values.project,
@@ -244,9 +318,15 @@ export default function TaskBoard() {
     };
 
     setColumns(prev => {
-      const newColumns = [...prev];
-      newColumns[0].tasks.push(newTask);
-      return newColumns;
+      return prev.map((columnm, index) => {
+        if (index === 0) {
+          return {
+            ...columnm,
+            tasks: [...columnm.tasks, newTask]
+          }
+        }
+        return columnm;
+      });
     });
 
     setIsOpen(false);
@@ -258,8 +338,19 @@ export default function TaskBoard() {
   return (
     <div className="relative p-8 min-h-screen">
       <div className="mx-auto max-w-7xl">
-        <div className="flex justify-between items-center mb-8">
-          <SearchBar onSearch={debouncedSearch} />
+        <div className="flex justify-between items-center gap-4 mb-8">
+          <div className="flex-grow">
+            <SearchBar onSearch={debouncedSearch} />
+          </div>
+          <Button
+            onClick={addNewColumn}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Add Column
+          </Button>
+          <Button onClick={() => setIsOpen(true)}>Add New Task</Button>
         </div>
 
         {/* Slide-over panel */}
@@ -323,9 +414,9 @@ export default function TaskBoard() {
                             <SelectValue placeholder="Select project" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="CHRONOS">CHRONOS</SelectItem>
-                            <SelectItem value="LABS">LABS</SelectItem>
-                            <SelectItem value="PHOENIX">PHOENIX</SelectItem>
+                            <SelectItem value="AURORA">AURORA</SelectItem>
+                            <SelectItem value="VEGA">VEGA</SelectItem>
+                            <SelectItem value="NEBULA">NEBULA</SelectItem>
                             <SelectItem value="LUMOS">LUMOS</SelectItem>
                           </SelectContent>
                         </Select>
@@ -353,7 +444,7 @@ export default function TaskBoard() {
 
         <DragDropContext onDragEnd={onDragEnd}>
           <div className="flex gap-2 pb-4 overflow-x-auto">
-            {columns.map((column, columnIndex) => (
+            {filteredColumns.map((column, columnIndex) => (
               <Droppable droppableId={columnIndex.toString()} key={column.title}>
                 {(provided) => (
                   <div
@@ -361,9 +452,14 @@ export default function TaskBoard() {
                     ref={provided.innerRef}
                     className="flex-1 min-w-[280px]"
                   >
-                    <h2 className="mb-3 font-medium text-gray-500 text-sm">
-                      {column.title}
-                    </h2>
+                    <EditableTitle
+                      title={column.title}
+                      onSave={(newTitle) => {
+                        const updatedColumns = [...columns]
+                        updatedColumns[columnIndex].title = newTitle
+                        setColumns(updatedColumns)
+                      }}
+                    />
                     <div
                       className="space-y-3 pr-2 hover:pr-1 h-[550px] transition-all duration-300 overflow-y-auto ease-in-out mask-image-gradient scroll-smooth"
                       style={{
