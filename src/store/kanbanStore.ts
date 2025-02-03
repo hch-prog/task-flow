@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { Task, Status } from "@/types/kanban";
+import { v4 as uuidv4 } from "uuid";
 
 interface KanbanState {
   tasks: Task[];
@@ -10,6 +11,9 @@ interface KanbanState {
     destinationStatus: Status,
     destinationIndex: number
   ) => void;
+  addTask: (task: Omit<Task, "id">) => void;
+  updateTask: (taskId: string, updates: Partial<Omit<Task, "id">>) => void;
+  deleteTask: (taskId: string) => void;
 }
 
 const initialTasks: Task[] = [
@@ -181,4 +185,18 @@ export const useKanbanStore = create<KanbanState>((set) => ({
       };
       
     }),
+  addTask: (task) =>
+    set((state) => ({
+      tasks: [...state.tasks, { ...task, id: uuidv4() }],
+    })),
+  updateTask: (taskId, updates) =>
+    set((state) => ({
+      tasks: state.tasks.map((task) =>
+        task.id === taskId ? { ...task, ...updates } : task
+      ),
+    })),
+  deleteTask: (taskId) =>
+    set((state) => ({
+      tasks: state.tasks.filter((task) => task.id !== taskId),
+    })),
 }));
