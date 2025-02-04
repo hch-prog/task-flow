@@ -6,7 +6,7 @@ export interface Task {
   status: Status
   ticket: string
   tags: string[]
-  assignees: string[]
+  assignees?: string[]
 }
 
 export interface Column {

@@ -1,6 +1,7 @@
 import { Inter } from 'next/font/google';
 import type { Metadata } from "next";
 import "./globals.css";
+import { AuthProvider } from '@/components/AuthProvider'
 
 
 const inter = Inter({
@@ -21,7 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        {children}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

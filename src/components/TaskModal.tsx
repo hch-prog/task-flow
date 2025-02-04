@@ -151,7 +151,7 @@ export function TaskModal({
               Separate tags with commas
             </p>
           </div>
-          <div>
+          {/* <div>
             <label className="block mb-1.5 font-medium text-gray-700 text-sm">
               Assignees
             </label>
@@ -165,7 +165,7 @@ export function TaskModal({
             <p className="mt-1 text-gray-500 text-xs">
               Separate assignees with commas
             </p>
-          </div>
+          </div> */}
           <div className="flex justify-end space-x-3 pt-5">
             <button
               type="button"

@@ -2,10 +2,13 @@
 
 import { DragDropContext, DropResult } from "@hello-pangea/dnd";
 import { useKanbanStore } from "@/store/kanbanStore";
+import { useAuthStore } from "@/store/authStore";
 import { Status } from "@/types/kanban";
 import { KanbanColumn } from "./KanbanColumn";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TaskModal } from "./TaskModal";
+import { LoadingScreen } from "./LoadingScreen";
+import { Plus } from "lucide-react";
 
 const columns: { id: Status; title: string }[] = [
   { id: "NOT_STARTED", title: "Not Started" },
@@ -16,7 +19,18 @@ const columns: { id: Status; title: string }[] = [
 
 export function KanbanBoard() {
   const { tasks, reorderTasks, addTask } = useKanbanStore();
+  const { userId, isAuthenticated } = useAuthStore();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleDragEnd = (result: DropResult) => {
     const { destination, source } = result;
@@ -36,16 +50,28 @@ export function KanbanBoard() {
     );
   };
 
+  if (isLoading || !isAuthenticated) {
+    return <LoadingScreen />;
+  }
+
   return (
     <div className="bg-[#f9fafb] min-h-screen">
       <div className="mx-auto px-8 py-10 max-w-[1600px]">
         <div className="flex justify-between items-center mb-10">
-          <h1 className="font-semibold text-[#101828] text-xl">Task Flow</h1>
+          <div>
+            <h1 className="mb-1 font-semibold text-[#101828] text-xl">
+              Task Flow
+            </h1>
+            <p className="text-gray-500 text-sm">
+              Workspace ID: {userId?.slice(0, 8)}
+            </p>
+          </div>
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="bg-gray-700 hover:bg-gray-900 shadow-md px-4 py-2 rounded-lg text-white transition-colors"
+            className="flex items-center space-x-2 bg-gray-700 hover:bg-gray-900 shadow-md px-4 py-2 rounded-lg text-white transition-colors"
           >
-            Add Task
+            <Plus size={18} />
+            <span>Add Task</span>
           </button>
         </div>
         <DragDropContext onDragEnd={handleDragEnd}>
