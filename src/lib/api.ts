@@ -29,11 +29,11 @@ export const api = {
         },
         body: JSON.stringify({ userId, isNewUser }),
       });
-      
+
       if (!response.ok) {
-        throw new Error('Auth sync failed')
+        throw new Error('Failed to sync auth');
       }
-      
+
       const data = await response.json();
       return data.user;
     } catch (error) {

@@ -1,14 +1,14 @@
 import { connectToDatabase } from '@/lib/mongodb';
 import { User } from '@/models/User';
 import { NextResponse } from 'next/server';
-
+import { v4 as uuidv4 } from 'uuid';
 export async function POST(request: Request) {
   try {
     await connectToDatabase();
     const { userId, isNewUser } = await request.json();
 
     if (isNewUser) {
-    
+
       const existingUser = await User.findOne({ userId });
       if (existingUser) {
         return NextResponse.json(
@@ -17,15 +17,15 @@ export async function POST(request: Request) {
         );
       }
 
-    
+
       const user = await User.create({
-        userId,
+        userId: uuidv4(),
         createdAt: new Date(),
         lastLoginAt: new Date(),
       });
       return NextResponse.json({ user });
     } else {
-     
+
       const user = await User.findOneAndUpdate(
         { userId },
         { lastLoginAt: new Date() },
@@ -34,7 +34,9 @@ export async function POST(request: Request) {
 
       if (!user) {
         return NextResponse.json(
-          { error: 'User not found' },
+          {
+            message: 'User not found, a new user has been created'
+          },
           { status: 404 }
         );
       }

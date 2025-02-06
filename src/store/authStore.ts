@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { v4 as uuidv4 } from 'uuid'
+
 import { api } from '@/lib/api'
 
 interface AuthState {
@@ -17,21 +17,23 @@ export const useAuthStore = create<AuthState>()(
       userId: null,
       isAuthenticated: false,
       initialize: async () => {
-        const newUserId = uuidv4()
-        set({
-          userId: newUserId,
-          isAuthenticated: true,
-        })
+
         try {
-          await api.syncAuth(newUserId, true) 
-          console.log('New user created and synced with database')
+          //return await api.syncAuth('', true)
+          const userData = await api.syncAuth('', true)
+          set({
+            userId: userData.userId,
+            isAuthenticated: true
+          })
+          return userData.userId
+
         } catch (error) {
           console.error('Failed to sync new user with database:', error)
         }
       },
       syncExistingUser: async (userId: string) => {
         try {
-          await api.syncAuth(userId, false) 
+          await api.syncAuth(userId, false)
           console.log('Existing user synced with database')
         } catch (error) {
           console.error('Failed to sync existing user with database:', error)

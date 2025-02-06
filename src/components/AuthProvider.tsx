@@ -5,19 +5,36 @@ import { useAuthStore } from '@/store/authStore'
 import { LoadingScreen } from './LoadingScreen'
 
 export function AuthProvider({ children }: Readonly<{ children: React.ReactNode }>) {
-  const { userId, isAuthenticated, initialize, syncExistingUser } = useAuthStore()
+  const { isAuthenticated, initialize, syncExistingUser } = useAuthStore()
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const handleAuth = async () => {
       try {
-        if (!isAuthenticated) {
-          if (userId) {
-         
-            await syncExistingUser(userId)
-          } else {
-            
-            await initialize()
+        const authData = localStorage.getItem('auth-storage')
+
+        if (!authData) {
+          const data = await initialize()
+
+          const authStorageData = {
+            state: {
+              userId: data,
+              isAuthenticated: true
+            }
+          }
+
+
+          localStorage.setItem('auth-storage', JSON.stringify(authStorageData))
+          console.log('new user', data);
+          return
+        } else {
+          const parsedData = JSON.parse(authData);
+
+          if (parsedData?.state?.userId) {
+            console.log('userId', parsedData.state.userId)
+            const data = await syncExistingUser(parsedData.state.userId)
+
+            console.log('existing user', data)
           }
         }
       } catch (error) {
@@ -28,7 +45,7 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
     }
 
     handleAuth()
-  }, [isAuthenticated, userId, initialize, syncExistingUser])
+  }, [isAuthenticated, initialize, syncExistingUser])
 
   if (isLoading) {
     return <LoadingScreen />
