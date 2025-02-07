@@ -17,9 +17,12 @@ export function KanbanTask({ task, index }: Readonly<KanbanTaskProps>) {
   const { updateTask, deleteTask } = useKanbanStore();
   const [showActions, setShowActions] = useState(false);
 
+  // Ensure we have a valid draggableId
+  const draggableId = task.id || `task-${index}`;
+
   return (
     <>
-      <Draggable draggableId={task.id} index={index}>
+      <Draggable draggableId={draggableId} index={index}>
         {(provided, snapshot) => (
           <div
             ref={provided.innerRef}

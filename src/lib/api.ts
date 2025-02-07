@@ -1,8 +1,13 @@
 import { Task } from '@/types/kanban';
+import { useAuthStore } from '@/store/authStore';
 
 export const api = {
   getTasks: async (): Promise<Task[]> => {
-    const response = await fetch('/api/tasks');
+    const userId = useAuthStore.getState().userId;
+    const response = await fetch(`/api/tasks?userId=${userId}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch tasks');
+    }
     const data = await response.json();
     return data.tasks;
   },

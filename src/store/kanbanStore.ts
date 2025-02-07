@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 
 interface KanbanState {
   tasks: Task[];
+  setTasks: (tasks: Task[]) => void;
   moveTask: (taskId: string, destination: Status) => void;
   reorderTasks: (
     sourceStatus: Status,
@@ -148,7 +149,8 @@ const initialTasks: Task[] = [
 ];
 
 export const useKanbanStore = create<KanbanState>((set) => ({
-  tasks: initialTasks,
+  tasks: [],
+  setTasks: (tasks) => set({ tasks }),
   moveTask: (taskId: string, destination: Status) =>
     set((state) => ({
       tasks: state.tasks.map((task) =>
@@ -162,28 +164,34 @@ export const useKanbanStore = create<KanbanState>((set) => ({
     destinationIndex
   ) =>
     set((state) => {
-      const filteredTasks = state.tasks.filter(
-        (task) => task.status === sourceStatus
-      );
-      const taskToMove = filteredTasks[sourceIndex];
-
-      if (!taskToMove) return state;
-
-      const newTasks = state.tasks.filter((task) => task.id !== taskToMove.id);
-      const destinationTasks = newTasks.filter(
-        (task) => task.status === destinationStatus
-      );
-
-      const updatedTask = { ...taskToMove, status: destinationStatus };
-      destinationTasks.splice(destinationIndex, 0, updatedTask);
-
-      return {
-        tasks: [
-          ...newTasks.filter((task) => task.status !== destinationStatus),
-          ...destinationTasks,
-        ],
-      };
+      const allTasks = [...state.tasks];
+      const sourceTasks = allTasks.filter((task) => task.status === sourceStatus);
+      const [movedTask] = sourceTasks.splice(sourceIndex, 1);
       
+      if (!movedTask) return state;
+
+      // Update the task's status
+      movedTask.status = destinationStatus;
+
+      // Remove the task from its original position
+      const taskIndex = allTasks.findIndex((t) => t.id === movedTask.id);
+      if (taskIndex !== -1) {
+        allTasks.splice(taskIndex, 1);
+      }
+
+      // Find where to insert the task in its new status column
+      const destinationTasks = allTasks.filter((task) => task.status === destinationStatus);
+      const insertIndex = destinationTasks.length >= destinationIndex 
+        ? allTasks.indexOf(destinationTasks[destinationIndex])
+        : allTasks.length;
+
+      if (insertIndex === -1) {
+        allTasks.push(movedTask);
+      } else {
+        allTasks.splice(insertIndex, 0, movedTask);
+      }
+
+      return { tasks: allTasks };
     }),
   addTask: (task) =>
     set((state) => ({

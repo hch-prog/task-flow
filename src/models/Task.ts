@@ -1,7 +1,13 @@
 import mongoose from 'mongoose';
-
+import { v4 as uuidv4 } from 'uuid';
 
 const TaskSchema = new mongoose.Schema({
+  id: {
+    type: String,
+    required: true,
+    default: () => uuidv4(),
+    unique: true
+  },
   title: {
     type: String,
     required: true,
@@ -25,14 +31,16 @@ const TaskSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now,
-  },
+}, {
+  timestamps: true,
+});
+
+// Add a pre-save middleware to ensure ID is set
+TaskSchema.pre('save', function(next) {
+  if (!this.id) {
+    this.id = uuidv4();
+  }
+  next();
 });
 
 // Prevent mongoose error on hot reload in development

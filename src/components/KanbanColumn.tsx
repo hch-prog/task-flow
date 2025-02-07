@@ -24,8 +24,9 @@ export function KanbanColumn({ id, title, tasks }: Readonly<KanbanColumnProps>) 
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
+            data-column-id={id}
             className={`min-h-[calc(100vh-220px)] rounded-lg p-2 transition-colors
-              ${snapshot.isDraggingOver ? 'bg-[#F9FAFB]' : ''}`}
+              ${snapshot.isDraggingOver ? 'bg-[#F9FAFB] ring-2 ring-gray-200' : ''}`}
           >
             {tasks.map((task, index) => (
               <KanbanTask key={task.id} task={task} index={index} />

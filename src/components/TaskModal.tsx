@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { Task, Status } from "@/types/kanban";
 import { X } from "lucide-react";
+import axios from "axios";
+import { useAuthStore } from "@/store/authStore";
 
 interface TaskModalProps {
   isOpen: boolean;
@@ -28,6 +30,8 @@ export function TaskModal({
 }: TaskModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -48,36 +52,53 @@ export function TaskModal({
     };
   }, [isOpen, onClose]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+
     const formData = new FormData(e.target as HTMLFormElement);
 
     const task: Omit<Task, "id"> = {
       title: formData.get("title") as string,
       status: formData.get("status") as Status,
       ticket: formData.get("ticket") as string,
-      tags:
-        formData
-          .get("tags")
-          ?.toString()
-          .split(",")
-          .map((tag) => tag.trim()) || [],
-      assignees:
-        formData
-          .get("assignees")
-          ?.toString()
-          .split(",")
-          .map((a) => a.trim()) || [],
+      tags: formData.get("tags")?.toString().split(",").map((tag) => tag.trim()).filter(Boolean) || [],
+      assignees: formData.get("assignees")?.toString().split(",").map((a) => a.trim()).filter(Boolean) || [],
     };
 
-    onSubmit(task);
-    onClose();
+    const userId = useAuthStore.getState().userId;
+    const data = { ...task, userId };
+
+    try {
+      if (mode === "add") {
+        const response = await axios.post('/api/tasks', data);
+        if (response.data.task && response.data.task.id) {
+          onSubmit(response.data.task);
+        } else {
+          throw new Error('Invalid task data received from server');
+        }
+      } else if (initialData?.id) {
+        const response = await axios.put(`/api/tasks/${initialData.id}`, data);
+        if (response.data.task && response.data.task.id) {
+          onSubmit(response.data.task);
+        } else {
+          throw new Error('Invalid task data received from server');
+        }
+      }
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+      console.error('Task submission error:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="z-50 fixed inset-0 flex justify-center items-center bg-black/60">
+    <div className="z-50 fixed inset-0 flex justify-center items-center  text-black bg-black/60">
       <div
         ref={modalRef}
         className="relative bg-white shadow-2xl p-6 rounded-xl w-full max-w-md transform transition-all duration-200 scale-100"
@@ -93,6 +114,11 @@ export function TaskModal({
             <X size={20} className="text-gray-500" />
           </button>
         </div>
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm">
+            {error}
+          </div>
+        )}
         <form ref={formRef} onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block mb-1.5 font-medium text-gray-700 text-sm">
@@ -170,15 +196,24 @@ export function TaskModal({
             <button
               type="button"
               onClick={onClose}
-              className="border-gray-300 hover:bg-gray-50 px-4 py-2.5 border rounded-lg font-medium text-gray-700 transition-colors"
+              disabled={isSubmitting}
+              className="border-gray-300 hover:bg-gray-50 px-4 py-2.5 border rounded-lg font-medium text-gray-700 transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="bg-gray-700 hover:bg-gray-900 px-4 py-2.5 rounded-lg font-medium text-white transition-colors"
+              disabled={isSubmitting}
+              className="bg-gray-700 hover:bg-gray-900 px-4 py-2.5 rounded-lg font-medium text-white transition-colors disabled:opacity-50 flex items-center"
             >
-              {mode === "add" ? "Create Task" : "Save Changes"}
+              {isSubmitting ? (
+                <>
+                  <span className="animate-spin mr-2">⏳</span>
+                  {mode === "add" ? "Creating..." : "Saving..."}
+                </>
+              ) : (
+                mode === "add" ? "Create Task" : "Save Changes"
+              )}
             </button>
           </div>
         </form>
