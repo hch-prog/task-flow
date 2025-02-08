@@ -3,15 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { Task, Status } from "@/types/kanban";
 import { X } from "lucide-react";
-import axios from "axios";
 import { useAuthStore } from "@/store/authStore";
+import { useKanbanStore } from "@/store/kanbanStore";
 
 interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (task: Omit<Task, "id">) => void;
-  initialData?: Task;
   mode: "add" | "edit";
+  initialData?: Task;
 }
 
 const statusOptions: Status[] = [
@@ -24,10 +23,11 @@ const statusOptions: Status[] = [
 export function TaskModal({
   isOpen,
   onClose,
-  onSubmit,
-  initialData,
   mode,
+  initialData,
 }: TaskModalProps) {
+  const { createTask, updateTask } = useKanbanStore();
+  const { userId } = useAuthStore();
   const modalRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,12 +54,13 @@ export function TaskModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!userId) return;
+    
     setIsSubmitting(true);
     setError(null);
 
     const formData = new FormData(e.target as HTMLFormElement);
-
-    const task: Omit<Task, "id"> = {
+    const taskData: Omit<Task, "id"> = {
       title: formData.get("title") as string,
       status: formData.get("status") as Status,
       ticket: formData.get("ticket") as string,
@@ -67,29 +68,15 @@ export function TaskModal({
       assignees: formData.get("assignees")?.toString().split(",").map((a) => a.trim()).filter(Boolean) || [],
     };
 
-    const userId = useAuthStore.getState().userId;
-    const data = { ...task, userId };
-
     try {
       if (mode === "add") {
-        const response = await axios.post('/api/tasks', data);
-        if (response.data.task && response.data.task.id) {
-          onSubmit(response.data.task);
-        } else {
-          throw new Error('Invalid task data received from server');
-        }
-      } else if (initialData?.id) {
-        const response = await axios.put(`/api/tasks/${initialData.id}`, data);
-        if (response.data.task && response.data.task.id) {
-          onSubmit(response.data.task);
-        } else {
-          throw new Error('Invalid task data received from server');
-        }
+        await createTask(taskData, userId);
+      } else if (mode === "edit" && initialData) {
+        await updateTask(initialData.id, taskData);
       }
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
-      console.error('Task submission error:', err);
     } finally {
       setIsSubmitting(false);
     }
@@ -98,7 +85,7 @@ export function TaskModal({
   if (!isOpen) return null;
 
   return (
-    <div className="z-50 fixed inset-0 flex justify-center items-center  text-black bg-black/60">
+    <div className="z-50 fixed inset-0 flex justify-center items-center bg-black/60 text-black">
       <div
         ref={modalRef}
         className="relative bg-white shadow-2xl p-6 rounded-xl w-full max-w-md transform transition-all duration-200 scale-100"
@@ -115,7 +102,7 @@ export function TaskModal({
           </button>
         </div>
         {error && (
-          <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm">
+          <div className="bg-red-50 mb-4 p-3 rounded-lg text-red-600 text-sm">
             {error}
           </div>
         )}
@@ -197,18 +184,18 @@ export function TaskModal({
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="border-gray-300 hover:bg-gray-50 px-4 py-2.5 border rounded-lg font-medium text-gray-700 transition-colors disabled:opacity-50"
+              className="border-gray-300 hover:bg-gray-50 disabled:opacity-50 px-4 py-2.5 border rounded-lg font-medium text-gray-700 transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="bg-gray-700 hover:bg-gray-900 px-4 py-2.5 rounded-lg font-medium text-white transition-colors disabled:opacity-50 flex items-center"
+              className="flex items-center bg-gray-700 hover:bg-gray-900 disabled:opacity-50 px-4 py-2.5 rounded-lg font-medium text-white transition-colors"
             >
               {isSubmitting ? (
                 <>
-                  <span className="animate-spin mr-2">⏳</span>
+                  <span className="mr-2 animate-spin">⏳</span>
                   {mode === "add" ? "Creating..." : "Saving..."}
                 </>
               ) : (

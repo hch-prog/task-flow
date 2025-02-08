@@ -3,7 +3,7 @@
 import { DragDropContext, DropResult } from "@hello-pangea/dnd";
 import { useKanbanStore } from "@/store/kanbanStore";
 import { useAuthStore } from "@/store/authStore";
-import { Status, Task } from "@/types/kanban";
+import { Status } from "@/types/kanban";
 import { KanbanColumn } from "./KanbanColumn";
 import { useState, useEffect } from "react";
 import { TaskModal } from "./TaskModal";
@@ -103,32 +103,19 @@ export function KanbanBoard() {
     setIsDragging(true);
   };
 
-  const addTask = async (task: Omit<Task, "id">) => {
-    try {
-      const response = await axios.post('/api/tasks', { ...task, userId });
-      if (response.data.task && response.data.task.id) {
-        setTasks([...tasks, response.data.task]);
-        toast.success('Task created successfully');
-      } else {
-        throw new Error('Invalid task data received from server');
-      }
-    } catch (error) {
-      console.error('Failed to add task:', error);
-      toast.error('Failed to create task. Please try again.');
-    }
-  };
+  
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[#f9fafb]">
+      <div className="flex justify-center items-center bg-[#f9fafb] min-h-screen">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
+          <p className="mb-4 text-red-600">{error}</p>
           <button
             onClick={() => {
               setError(null);
               fetchTasks();
             }}
-            className="bg-gray-700 hover:bg-gray-900 text-white px-4 py-2 rounded-lg transition-colors"
+            className="bg-gray-700 hover:bg-gray-900 px-4 py-2 rounded-lg text-white transition-colors"
           >
             Retry
           </button>
@@ -180,7 +167,6 @@ export function KanbanBoard() {
       <TaskModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        onSubmit={addTask}
         mode="add"
       />
     </div>

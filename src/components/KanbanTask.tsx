@@ -14,15 +14,22 @@ interface KanbanTaskProps {
 
 export function KanbanTask({ task, index }: Readonly<KanbanTaskProps>) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const { updateTask, deleteTask } = useKanbanStore();
+  const { deleteTask } = useKanbanStore();
   const [showActions, setShowActions] = useState(false);
 
-  // Ensure we have a valid draggableId
-  const draggableId = task.id || `task-${index}`;
+  const handleDelete = async () => {
+    if (window.confirm("Are you sure you want to delete this task?")) {
+      try {
+        await deleteTask(task.id);
+      } catch (error) {
+        console.error('Failed to delete task:', error);
+      }
+    }
+  };
 
   return (
     <>
-      <Draggable draggableId={draggableId} index={index}>
+      <Draggable draggableId={task.id} index={index}>
         {(provided, snapshot) => (
           <div
             ref={provided.innerRef}
@@ -49,13 +56,7 @@ export function KanbanTask({ task, index }: Readonly<KanbanTaskProps>) {
                 <Pencil size={14} />
               </button>
               <button
-                onClick={() => {
-                  if (
-                    window.confirm("Are you sure you want to delete this task?")
-                  ) {
-                    deleteTask(task.id);
-                  }
-                }}
+                onClick={handleDelete}
                 className="hover:bg-red-50 p-1.5 rounded-md text-gray-500 hover:text-red-600 transition-colors duration-200"
                 title="Delete task"
               >
@@ -89,9 +90,8 @@ export function KanbanTask({ task, index }: Readonly<KanbanTaskProps>) {
       <TaskModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        onSubmit={(updates) => updateTask(task.id, updates)}
-        initialData={task}
         mode="edit"
+        initialData={task}
       />
     </>
   );

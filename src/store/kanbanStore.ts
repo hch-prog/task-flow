@@ -1,39 +1,100 @@
 import { create } from "zustand";
 import { Task, Status } from "@/types/kanban";
-import { v4 as uuidv4 } from "uuid";
+import axios from "axios";
+import { toast } from "react-hot-toast";
 
 interface KanbanState {
   tasks: Task[];
+  isLoading: boolean;
   setTasks: (tasks: Task[]) => void;
-  moveTask: (taskId: string, destination: Status) => void;
+  createTask: (task: Omit<Task, "id">, userId: string) => Promise<Task>;
+  updateTask: (taskId: string, updates: Partial<Task>) => Promise<Task>;
+  deleteTask: (taskId: string) => Promise<void>;
   reorderTasks: (
     sourceStatus: Status,
     sourceIndex: number,
     destinationStatus: Status,
     destinationIndex: number
   ) => void;
-  addTask: (task: Omit<Task, "id">) => void;
-  updateTask: (taskId: string, updates: Partial<Omit<Task, "id">>) => void;
-  deleteTask: (taskId: string) => void;
 }
 
-
-
-export const useKanbanStore = create<KanbanState>((set) => ({
+export const useKanbanStore = create<KanbanState>((set, get) => ({
   tasks: [],
+  isLoading: false,
+  
   setTasks: (tasks) => set({ tasks }),
-  moveTask: (taskId: string, destination: Status) =>
+  
+  createTask: async (task, userId) => {
+    try {
+      const response = await axios.post('/api/tasks', { ...task, userId });
+      const newTask = response.data.task;
+      set((state) => ({ tasks: [...state.tasks, newTask] }));
+      toast.success('Task created successfully');
+      return newTask;
+    } catch (error) {
+      toast.error('Failed to create task');
+      throw error;
+    }
+  },
+
+  updateTask: async (taskId: string, updates: Partial<Task>) => {
+    // Optimistic update
+    const previousTasks = get().tasks;
     set((state) => ({
       tasks: state.tasks.map((task) =>
-        task.id === taskId ? { ...task, status: destination } : task
+        task.id === taskId ? { ...task, ...updates } : task
       ),
-    })),
-  reorderTasks: (
-    sourceStatus,
-    sourceIndex,
-    destinationStatus,
-    destinationIndex
-  ) =>
+    }));
+
+    try {
+      const response = await axios.put('/api/tasks', {
+        id: taskId,
+        ...updates,
+      });
+      
+      if (!response.data.task) {
+        throw new Error('Failed to update task');
+      }
+
+      // Update with server response
+      set((state) => ({
+        tasks: state.tasks.map((task) =>
+          task.id === taskId ? response.data.task : task
+        ),
+      }));
+      
+      toast.success('Task updated successfully');
+      return response.data.task;
+    } catch (error) {
+      // Rollback on error
+      set({ tasks: previousTasks });
+      toast.error('Failed to update task');
+      throw error;
+    }
+  },
+
+  deleteTask: async (taskId: string) => {
+    // Optimistic delete
+    const previousTasks = get().tasks;
+    set((state) => ({
+      tasks: state.tasks.filter((task) => task.id !== taskId),
+    }));
+
+    try {
+      await axios.delete(`/api/tasks?id=${taskId}`);
+      toast.success('Task deleted successfully');
+    } catch (error) {
+      // Rollback on error
+      set({ tasks: previousTasks });
+      toast.error('Failed to delete task');
+      throw error;
+    }
+  },
+
+  reorderTasks: async (sourceStatus, sourceIndex, destinationStatus, destinationIndex) => {
+    const previousTasks = get().tasks;
+    
+    // Optimistic update
     set((state) => {
       const allTasks = [...state.tasks];
       const sourceTasks = allTasks.filter((task) => task.status === sourceStatus);
@@ -41,16 +102,13 @@ export const useKanbanStore = create<KanbanState>((set) => ({
       
       if (!movedTask) return state;
 
-      // Update the task's status
       movedTask.status = destinationStatus;
-
-      // Remove the task from its original position
       const taskIndex = allTasks.findIndex((t) => t.id === movedTask.id);
+      
       if (taskIndex !== -1) {
         allTasks.splice(taskIndex, 1);
       }
 
-      // Find where to insert the task in its new status column
       const destinationTasks = allTasks.filter((task) => task.status === destinationStatus);
       const insertIndex = destinationTasks.length >= destinationIndex 
         ? allTasks.indexOf(destinationTasks[destinationIndex])
@@ -63,19 +121,27 @@ export const useKanbanStore = create<KanbanState>((set) => ({
       }
 
       return { tasks: allTasks };
-    }),
-  addTask: (task) =>
-    set((state) => ({
-      tasks: [...state.tasks, { ...task, id: uuidv4() }],
-    })),
-  updateTask: (taskId, updates) =>
-    set((state) => ({
-      tasks: state.tasks.map((task) =>
-        task.id === taskId ? { ...task, ...updates } : task
-      ),
-    })),
-  deleteTask: (taskId) =>
-    set((state) => ({
-      tasks: state.tasks.filter((task) => task.id !== taskId),
-    })),
+    });
+
+    // Update the backend
+    try {
+      const movedTask = get().tasks.find(t => 
+        t.status === destinationStatus && 
+        get().tasks.filter(task => task.status === destinationStatus)
+          .indexOf(t) === destinationIndex
+      );
+
+      if (movedTask) {
+        await axios.put('/api/tasks', {
+          id: movedTask.id,
+          status: destinationStatus,
+        });
+      }
+    } catch (error) {
+      // Rollback on error
+      set({ tasks: previousTasks });
+      toast.error('Failed to update task position');
+      console.error('Failed to update task position:', error);
+    }
+  },
 }));

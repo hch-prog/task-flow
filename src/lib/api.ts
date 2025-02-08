@@ -11,20 +11,6 @@ export const api = {
     const data = await response.json();
     return data.tasks;
   },
-
-  createTask: async (task: Omit<Task, 'id'>): Promise<Task> => {
-    const response = await fetch('/api/tasks', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(task),
-    });
-    const data = await response.json();
-    return data.task;
-  },
-
-
   syncAuth: async (userId: string, isNewUser: boolean) => {
     try {
       const response = await fetch('/api/auth', {
