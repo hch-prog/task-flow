@@ -1,19 +1,19 @@
 import { connectToDatabase } from '@/lib/mongodb';
 import { Task } from '@/models/Task';
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 
 export async function PUT(
-  request: Request,
-  { params }: { params: { taskId: string } }
+  request: NextRequest,
 ) {
   try {
     await connectToDatabase();
 
-    const { taskId } = params;
+
     const data = await request.json();
 
+    // Update the task using taskId
     const task = await Task.findOneAndUpdate(
-      { id: taskId },
+      { id: data.id }, // Use taskId here
       { ...data },
       { new: true }
     );
@@ -33,4 +33,4 @@ export async function PUT(
       { status: 500 }
     );
   }
-} 
+}

@@ -49,7 +49,7 @@ export function KanbanBoard() {
   const handleDragEnd = async (result: DropResult) => {
     setIsDragging(false);
     const { destination, source, draggableId } = result;
-    
+
     if (!destination) return;
     if (
       destination.droppableId === source.droppableId &&
@@ -71,20 +71,25 @@ export function KanbanBoard() {
       const task = tasks.find(t => t.id === draggableId);
       if (!task) return;
 
+      const newStatus = destination.droppableId;
+      if (!newStatus) {
+        throw new Error('Invalid destination status');
+      }
+
       const updatedTask = {
         ...task,
         status: destination.droppableId as Status
       };
 
-      const response = await axios.put(`/api/tasks/${draggableId}`, updatedTask);
-      
+      const response = await axios.put(`/api/tasks/edit`, updatedTask);
+
       if (!response.data.task) {
         throw new Error('Failed to update task');
       }
 
       // Show success toast
       toast.success(`Task moved to ${destination.droppableId.replace('_', ' ').toLowerCase()}`);
-      
+
     } catch (error) {
       console.error('Failed to update task status:', error);
       // Show error toast
@@ -118,7 +123,7 @@ export function KanbanBoard() {
       <div className="flex items-center justify-center min-h-screen bg-[#f9fafb]">
         <div className="text-center">
           <p className="text-red-600 mb-4">{error}</p>
-          <button 
+          <button
             onClick={() => {
               setError(null);
               fetchTasks();
@@ -137,7 +142,7 @@ export function KanbanBoard() {
   }
 
   return (
-    <div 
+    <div
       className={`bg-[#f9fafb] min-h-screen ${isDragging ? 'cursor-grabbing' : ''}`}
     >
       <div className="mx-auto px-8 py-10 max-w-[1600px]">
